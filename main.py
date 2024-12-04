@@ -28,15 +28,17 @@ def process_log_chunk(chunk, ip_request_counts, endpoint_counts, failed_ip_count
             if status == 401 or message == "Invalid credentials":
                 failed_ip_counts[ip] += 1
 
-
-
-
 # Function to process the log file with threading
-def parse_log_file(log_file_path, threshold=7, num_threads=4, csv_file="log_summary.csv"):
+def parse_log_file(log_file_path, threshold=10, num_threads=4, csv_file="log_summary.csv"):
     try:
+        # Prompt user for threshold if not provided
+        user_input = input(f"Enter the threshold for suspicious activity detection (default: {threshold}): ")
+        if user_input.strip().isdigit():
+            threshold = int(user_input.strip())
+        
         # Capture start time
         start_time = datetime.datetime.now()
-        start_time_str = start_time.strftime("%H:%M:%S")  # Only time in hours, minutes, and seconds
+        start_time_str = start_time.strftime("%H:%M:%S")
         print(f"Process started at: {start_time_str}")
         
         # Regular expression to parse the log lines
@@ -44,88 +46,77 @@ def parse_log_file(log_file_path, threshold=7, num_threads=4, csv_file="log_summ
             r'(?P<ip>\d+\.\d+\.\d+\.\d+) - - \[(?P<timestamp>[^\]]+)\] "(?P<method>\w+) (?P<endpoint>[^ ]+) (?P<protocol>[^"]+)" (?P<status>\d+) (?P<size>\d+)(?: "(?P<message>[^"]+)")?'
         )
         
-        # Initialize counters and variables
+        # Initialize counters
         ip_request_counts = Counter()
         endpoint_counts = Counter()
         failed_ip_counts = Counter()
-        total_logs = 0  # Variable to count the total logs processed
+        total_logs = 0
 
-        # Read log file in chunks to process concurrently
+        # Read log file
         with open(log_file_path, 'r') as file:
             lines = file.readlines()
         
-        total_logs = len(lines)  # Count total logs in the file
-        
-        # Divide lines into chunks for multi-threading
+        total_logs = len(lines)
         chunk_size = len(lines) // num_threads
         chunks = [lines[i:i + chunk_size] for i in range(0, len(lines), chunk_size)]
         
-        # Use ThreadPoolExecutor to process chunks concurrently
+        # Process logs concurrently
         with ThreadPoolExecutor(max_workers=num_threads) as executor:
             futures = []
             for chunk in chunks:
                 futures.append(executor.submit(process_log_chunk, chunk, ip_request_counts, endpoint_counts, failed_ip_counts, log_pattern))
-            
-            # Wait for all threads to complete
             for future in futures:
                 future.result()
 
-        # Find the top 10 IPs with the most requests
+        # Top 10 IPs with most requests
         top_10_ips = ip_request_counts.most_common(10)
-        
-        # Find the most accessed endpoint
         most_accessed_endpoint = endpoint_counts.most_common(1)[0] if endpoint_counts else ("None", 0)
-        
-        # Identify suspicious IPs with the highest failed login attempts
         suspicious_ips = {ip: count for ip, count in failed_ip_counts.items() if count > threshold}
-        highest_failed_ip = max(suspicious_ips.items(), key=lambda x: x[1], default=("None", 0))
+        top_10_suspicious_ips = Counter(suspicious_ips).most_common(10)
 
-        # Prepare the terminal display
+        # Prepare display
         console = Console()
 
-        # Display IP Request Counts in a Table
+        # Display top 10 IPs
         ip_table = Table(title="[bold green]Top 10 IPs with Highest Request Counts[/bold green]", box=box.ROUNDED)
         ip_table.add_column("IP Address", justify="center")
         ip_table.add_column("Request Count", justify="center")
-        
-        # Highlight the highest request IP
         for ip, count in top_10_ips:
-            if count == top_10_ips[0][1]:  # The IP with the most requests
-                ip_table.add_row(f"[bold yellow]{ip}[/bold yellow]", f"[bold yellow]{count}[/bold yellow]")
-            else:
-                ip_table.add_row(ip, str(count))
-        
+            ip_table.add_row(ip, str(count))
         console.print(ip_table)
-        
-        # Display the most accessed endpoint
-        console.print(f"[bold yellow]Most Accessed Endpoint:[/bold yellow] {most_accessed_endpoint[0]} with {most_accessed_endpoint[1]} requests")
-        
-        # Display the IP with the highest failed login attempts
-        console.print(f"[bold red]IP with Highest Failed Login Attempts:[/bold red] {highest_failed_ip[0]} with {highest_failed_ip[1]} failed attempts")
 
-        # Save the data to a CSV file
+        # Display most accessed endpoint
+        console.print(
+            f"[bold cyan]Most Frequently Accessed Endpoint:[/bold cyan] {most_accessed_endpoint[0]} (Accessed {most_accessed_endpoint[1]} times)"
+        )
+
+        # Display suspicious IPs
+        suspicious_table = Table(title="[bold red]Top 10 Suspicious Activities Detected[/bold red]", box=box.ROUNDED)
+        suspicious_table.add_column("IP Address", justify="center")
+        suspicious_table.add_column("Failed Login Attempts", justify="center")
+        for ip, count in top_10_suspicious_ips:
+            suspicious_table.add_row(ip, str(count))
+        console.print(suspicious_table)
+
+        # Save data to CSV
         with open(csv_file, "w", newline="") as csvfile:
             writer = csv.writer(csvfile)
-            # Write the headers
             writer.writerow(["IP Address", "Request Count"])
-            # Write the top 10 IPs
             for ip, count in top_10_ips:
                 writer.writerow([ip, count])
-            
-            # Write the most accessed endpoint and the failed login IP
             writer.writerow([])
             writer.writerow(["Most Accessed Endpoint", most_accessed_endpoint[0], most_accessed_endpoint[1]])
-            writer.writerow(["IP with Highest Failed Login Attempts", highest_failed_ip[0], highest_failed_ip[1]])
+            writer.writerow(["Top 10 Suspicious IPs"])
+            for ip, count in top_10_suspicious_ips:
+                writer.writerow([ip, count])
 
-        # Capture finish time
         finish_time = datetime.datetime.now()
-        finish_time_str = finish_time.strftime("%H:%M:%S")  # Only time in hours, minutes, and seconds
+        finish_time_str = finish_time.strftime("%H:%M:%S")
         print(f"Process finished at: {finish_time_str}")
         print(f"Total time taken: {finish_time - start_time}")
         print(f"Total number of logs processed: {total_logs}")
-        
         console.print(f"[bold green]Log summary has been saved to {csv_file}.[/bold green]")
-        
+
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
 

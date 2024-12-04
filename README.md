@@ -8,7 +8,7 @@ This script analyzes web server logs efficiently using multithreading, enabling 
 
 ## Testing on the given log file
 
-![s4](https://github.com/user-attachments/assets/19f065e8-ed43-459a-94f2-cdfe6c5f0fc7)
+![s2](https://github.com/user-attachments/assets/ff023e54-5fa3-43e2-9303-9e68f5329518)
 
 - Above logs analysis displays top highest requests count along with most accessed endpoint and ip with highest login attempts at `specific threshold`.
 
@@ -37,10 +37,10 @@ This process validates the script's efficiency and scalability.
     
 ## Screenshots
 
-![s1](https://github.com/user-attachments/assets/0a10a285-f0fc-4d43-b5b1-94f2d1f77fae)
+![s1](https://github.com/user-attachments/assets/89cea66d-5eba-403a-8774-0225d53063e0)
 
 
-- Total logs processed in the above are (`10,18,390`)
+- Total logs processed in the above are (`10,00,000`)
 
 ![s2](https://github.com/user-attachments/assets/fb18fdf7-065e-47c6-8a83-69901141d09e)
 

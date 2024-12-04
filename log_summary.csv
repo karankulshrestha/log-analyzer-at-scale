@@ -6,4 +6,5 @@ IP Address,Request Count
 192.168.1.100,5
 
 Most Accessed Endpoint,/login,13
-IP with Highest Failed Login Attempts,203.0.113.5,8
+Top 10 Suspicious IPs
+203.0.113.5,8
